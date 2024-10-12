@@ -6,6 +6,7 @@ import aiohttp
 from typing import Union
 from revolt.ext import commands
 import time
+import re  # RegEx kütüphanesini ekleyin
 
 def load_json_data(dosya_adi):
     if os.path.exists(dosya_adi):
@@ -48,9 +49,6 @@ class Client(commands.CommandsClient):
                 await uye.edit(roles=uye.roles + [rol])
                 print(f"{uye.name} kullanıcısına otorol ({rol.name}) verildi.")
 
-    async def send_message_to_channel(self, kanal_id: str, icerik: str):
-        kanal = await Client.fetch_channel(self, kanal_id)
-        await kanal.send(icerik)
 
     async def on_message(self, mesaj: revolt.Message):
         if mesaj.author.id == self.user.id:
@@ -70,22 +68,23 @@ class Client(commands.CommandsClient):
             try:
                 izinler = mesaj.author.get_permissions()
                 if izinler.kick_members:
-                    args = mesaj.content.split(" ")
-                    if len(args) < 2:
-                        await mesaj.channel.send("❌ Kullanıcı ID'si girmeniz gerekiyor.")
+                    user_id_match = re.search(r'<@!?([A-Za-z0-9]+)>', mesaj.content)
+                    if not user_id_match:
+                        await mesaj.channel.send("❌ Kullanıcıyı mention etmeniz gerekiyor.")
                         return
 
-                    kullanici_id = args[1]
+                    kullanici_id = user_id_match.group(1)
                     kullanici = mesaj.server.get_member(kullanici_id)
+
                     if kullanici:
-                        author_highest_role = sorted(mesaj.author.roles, key=lambda r: r.rank,reverse=True)
-                        target_highest_role = sorted(kullanici.roles, key=lambda r: r.rank,reverse=True)
-                        
+                        author_highest_role = sorted(mesaj.author.roles, key=lambda r: r.rank, reverse=True)
+                        target_highest_role = sorted(kullanici.roles, key=lambda r: r.rank, reverse=True)
+
                         author_rank = author_highest_role[-1].rank if author_highest_role else 0
                         target_rank = target_highest_role[-1].rank if target_highest_role else 0 
 
-                        if author_rank >= target_rank:
-                            await mesaj.channel.send(f"❌ Kendinizden üstteki bir kullanıcıyı atamazsınız.")
+                        if author_rank >= target_rank and not target_rank == 0:
+                            await mesaj.channel.send("❌ Kendinizden üstteki bir kullanıcıyı atamazsınız." + str(author_rank) + " "+ str(target_rank))
                             return
                         await kullanici.kick()
                         await mesaj.channel.send(f"✅ **{kullanici.name}** başarıyla atıldı.")
@@ -100,21 +99,22 @@ class Client(commands.CommandsClient):
             try:
                 izinler = mesaj.author.get_permissions()
                 if izinler.ban_members:
-                    args = mesaj.content.split(" ")
-                    if len(args) < 2:
-                        await mesaj.channel.send("❌ Kullanıcı ID'si girmeniz gerekiyor.")
+                    user_id_match = re.search(r'<@!?([A-Za-z0-9]+)>', mesaj.content)
+                    if not user_id_match:
+                        await mesaj.channel.send("❌ Kullanıcıyı mention etmeniz gerekiyor.")
                         return
 
-                    kullanici_id = args[1]
+                    kullanici_id = user_id_match.group(1)
                     kullanici = mesaj.server.get_member(kullanici_id)
+
                     if kullanici:
-                        author_highest_role = sorted(mesaj.author.roles, key=lambda r: r.rank,reverse=True)
-                        target_highest_role = sorted(kullanici.roles, key=lambda r: r.rank,reverse=True)
+                        author_highest_role = sorted(mesaj.author.roles, key=lambda r: r.rank, reverse=True)
+                        target_highest_role = sorted(kullanici.roles, key=lambda r: r.rank, reverse=True)
 
                         author_rank = author_highest_role[-1].rank if author_highest_role else 0
                         target_rank = target_highest_role[-1].rank if target_highest_role else 0
 
-                        if author_rank >= target_rank:
+                        if author_rank >= target_rank and not target_rank == 0:
                             await mesaj.channel.send("❌ Kendinizden üstteki bir kullanıcıyı yasaklayamazsınız.")
                             return
                         await kullanici.ban()
@@ -151,9 +151,9 @@ class Client(commands.CommandsClient):
                     ("durum", "Botun durumu hakkında bilgi verir."),
                 ],
                 "👮 **Yönetim Komutları:**": [
-                    ("kick <kullanici id>", "Belirtilen kullanıcıyı sunucudan atar."),
-                    ("ban <kullanici id>", "Belirtilen kullanıcıyı sunucudan yasaklar."),
-                    ("mute <kullanici id> <saniye>", "Belirtilen kullanıcıyı susturur.  **[HENÜZ REVOLTTA MEVCUT DEĞİLDİR.]**"),
+                    ("kick <kullanici>", "Belirtilen kullanıcıyı sunucudan atar."),
+                    ("ban <kullanici>", "Belirtilen kullanıcıyı sunucudan yasaklar."),
+                    # ("mute <kullanici id> <saniye>", "Belirtilen kullanıcıyı susturur.  **[HENÜZ REVOLTTA MEVCUT DEĞİLDİR.]**"),
                 ],
                 "⚙️ **Otomasyon Komutları:**": [
                     ("otorol <rol id>", "Sunucunuza yeni girenlere otomatik rol vermenizi sağlar."),
