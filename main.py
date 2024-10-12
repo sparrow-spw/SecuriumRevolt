@@ -67,30 +67,65 @@ class Client(commands.CommandsClient):
             await msg.edit(content=f"🏓 **Pong!** Gecikme süresi *{ping}*ms")
 
         elif mesaj.content.startswith("s!kick"):
-            izinler = mesaj.author.get_permissions()
-            if izinler.kick_members:
-                kullanici_id = mesaj.content.split(" ")[1]
-                kullanici = mesaj.server.get_member(kullanici_id)
-                if kullanici:
-                    await kullanici.kick()
-                    await mesaj.channel.send(f"✅ **{kullanici.name}** başarıyla atıldı.")
+            try:
+                izinler = mesaj.author.get_permissions()
+                if izinler.kick_members:
+                    args = mesaj.content.split(" ")
+                    if len(args) < 2:
+                        await mesaj.channel.send("❌ Kullanıcı ID'si girmeniz gerekiyor.")
+                        return
+
+                    kullanici_id = args[1]
+                    kullanici = mesaj.server.get_member(kullanici_id)
+                    if kullanici:
+                        author_highest_role = sorted(mesaj.author.roles, key=lambda r: r.rank, reverse=True)
+                        target_highest_role = sorted(kullanici.roles, key=lambda r: r.rank, reverse=True)
+
+                        author_rank = author_highest_role[0].rank if author_highest_role else 0
+                        target_rank = target_highest_role[0].rank if target_highest_role else 0
+
+                        if target_rank >= author_rank:
+                            await mesaj.channel.send("❌ Kendinizden üstteki bir kullanıcıyı atamazsınız.")
+                            return
+                        await kullanici.kick()
+                        await mesaj.channel.send(f"✅ **{kullanici.name}** başarıyla atıldı.")
+                    else:
+                        await mesaj.channel.send("❌ Kullanıcı bulunamadı.")
                 else:
-                    await mesaj.channel.send("❌ Kullanıcı bulunamadı.")
-            else:
-                await mesaj.channel.send("❌ Bu komutu kullanmak için yeterli yetkiniz yok.")
+                    await mesaj.channel.send("❌ Bu komutu kullanmak için yeterli yetkiniz yok.")
+            except Exception as e:
+                await mesaj.channel.send(f"Bir hata oluştu: {e}")
 
         elif mesaj.content.startswith("s!ban"):
-            izinler = mesaj.author.get_permissions()
-            if izinler.ban_members:
-                kullanici_id = mesaj.content.split(" ")[1]
-                kullanici = mesaj.server.get_member(kullanici_id)
-                if kullanici:
-                    await kullanici.ban()
-                    await mesaj.channel.send(f"🔨 **{kullanici.name}** başarıyla yasaklandı.")
+            try:
+                izinler = mesaj.author.get_permissions()
+                if izinler.ban_members:
+                    args = mesaj.content.split(" ")
+                    if len(args) < 2:
+                        await mesaj.channel.send("❌ Kullanıcı ID'si girmeniz gerekiyor.")
+                        return
+
+                    kullanici_id = args[1]
+                    kullanici = mesaj.server.get_member(kullanici_id)
+                    if kullanici:
+                        author_highest_role = sorted(mesaj.author.roles, key=lambda r: r.rank, reverse=True)
+                        target_highest_role = sorted(kullanici.roles, key=lambda r: r.rank, reverse=True)
+
+                        author_rank = author_highest_role[0].rank if author_highest_role else 0
+                        target_rank = target_highest_role[0].rank if target_highest_role else 0
+
+                        if target_rank >= author_rank:
+                            await mesaj.channel.send("❌ Kendinizden üstteki bir kullanıcıyı yasaklayamazsınız.")
+                            return
+                        await kullanici.ban()
+                        await mesaj.channel.send(f"🔨 **{kullanici.name}** başarıyla yasaklandı.")
+                    else:
+                        await mesaj.channel.send("❌ Kullanıcı bulunamadı.")
                 else:
-                    await mesaj.channel.send("❌ Kullanıcı bulunamadı.")
-            else:
-                await mesaj.channel.send("❌ Bu komutu kullanmak için yeterli yetkiniz yok.")
+                    await mesaj.channel.send("❌ Bu komutu kullanmak için yeterli yetkiniz yok.")
+            except Exception as e:
+                await mesaj.channel.send(f"Bir hata oluştu: {e}")
+
 
         elif mesaj.content.startswith("s!durum"):
             surum = "1.0.0"
