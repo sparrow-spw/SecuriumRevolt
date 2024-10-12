@@ -38,7 +38,7 @@ class Client(commands.CommandsClient):
         
     async def on_member_join(self, uye: revolt.Member):
         sunucu_id = str(uye.server.id)
-        veritabanı = load_json_data('veritabani.json')
+        veritabanı = load_json_data('database.json')
         otorol_verisi = veritabanı.get('otorol', {})
         
         if sunucu_id in otorol_verisi:
@@ -78,14 +78,14 @@ class Client(commands.CommandsClient):
                     kullanici_id = args[1]
                     kullanici = mesaj.server.get_member(kullanici_id)
                     if kullanici:
-                        author_highest_role = sorted(mesaj.author.roles, key=lambda r: r.rank, reverse=True)
-                        target_highest_role = sorted(kullanici.roles, key=lambda r: r.rank, reverse=True)
+                        author_highest_role = sorted(mesaj.author.roles, key=lambda r: r.rank,reverse=True)
+                        target_highest_role = sorted(kullanici.roles, key=lambda r: r.rank,reverse=True)
+                        
+                        author_rank = author_highest_role[-1].rank if author_highest_role else 0
+                        target_rank = target_highest_role[-1].rank if target_highest_role else 0 
 
-                        author_rank = author_highest_role[0].rank if author_highest_role else 0
-                        target_rank = target_highest_role[0].rank if target_highest_role else 0
-
-                        if author_rank <= target_rank:
-                            await mesaj.channel.send(f"❌ Kendinizden üstteki bir kullanıcıyı atamazsınız. " + str(author_rank) + " " + str(target_rank))
+                        if author_rank >= target_rank:
+                            await mesaj.channel.send(f"❌ Kendinizden üstteki bir kullanıcıyı atamazsınız.")
                             return
                         await kullanici.kick()
                         await mesaj.channel.send(f"✅ **{kullanici.name}** başarıyla atıldı.")
@@ -108,13 +108,13 @@ class Client(commands.CommandsClient):
                     kullanici_id = args[1]
                     kullanici = mesaj.server.get_member(kullanici_id)
                     if kullanici:
-                        author_highest_role = sorted(mesaj.author.roles, key=lambda r: r.rank, reverse=True)
-                        target_highest_role = sorted(kullanici.roles, key=lambda r: r.rank, reverse=True)
+                        author_highest_role = sorted(mesaj.author.roles, key=lambda r: r.rank,reverse=True)
+                        target_highest_role = sorted(kullanici.roles, key=lambda r: r.rank,reverse=True)
 
-                        author_rank = author_highest_role[0].rank if author_highest_role else 0
-                        target_rank = target_highest_role[0].rank if target_highest_role else 0
+                        author_rank = author_highest_role[-1].rank if author_highest_role else 0
+                        target_rank = target_highest_role[-1].rank if target_highest_role else 0
 
-                        if author_rank <= target_rank:
+                        if author_rank >= target_rank:
                             await mesaj.channel.send("❌ Kendinizden üstteki bir kullanıcıyı yasaklayamazsınız.")
                             return
                         await kullanici.ban()
