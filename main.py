@@ -84,7 +84,7 @@ class Client(commands.CommandsClient):
                         author_rank = author_highest_role[0].rank if author_highest_role else 0
                         target_rank = target_highest_role[0].rank if target_highest_role else 0
 
-                        if target_rank >= author_rank:
+                        if target_rank <= author_rank:
                             await mesaj.channel.send("❌ Kendinizden üstteki bir kullanıcıyı atamazsınız.")
                             return
                         await kullanici.kick()
@@ -114,7 +114,7 @@ class Client(commands.CommandsClient):
                         author_rank = author_highest_role[0].rank if author_highest_role else 0
                         target_rank = target_highest_role[0].rank if target_highest_role else 0
 
-                        if target_rank >= author_rank:
+                        if target_rank <= author_rank:
                             await mesaj.channel.send("❌ Kendinizden üstteki bir kullanıcıyı yasaklayamazsınız.")
                             return
                         await kullanici.ban()
