@@ -84,7 +84,7 @@ class Client(commands.CommandsClient):
                         target_rank = target_highest_role[-1].rank if target_highest_role else 0 
 
                         if author_rank >= target_rank and not target_rank == 0:
-                            await mesaj.channel.send("❌ Kendinizden üstteki bir kullanıcıyı atamazsınız." + str(author_rank) + " "+ str(target_rank))
+                            await mesaj.channel.send("❌ Kendinizden üstteki bir kullanıcıyı atamazsınız.")
                             return
                         await kullanici.kick()
                         await mesaj.channel.send(f"✅ **{kullanici.name}** başarıyla atıldı.")
