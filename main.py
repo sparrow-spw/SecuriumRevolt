@@ -84,8 +84,8 @@ class Client(commands.CommandsClient):
                         author_rank = author_highest_role[0].rank if author_highest_role else 0
                         target_rank = target_highest_role[0].rank if target_highest_role else 0
 
-                        if target_rank <= author_rank:
-                            await mesaj.channel.send("❌ Kendinizden üstteki bir kullanıcıyı atamazsınız.")
+                        if author_rank <= target_rank:
+                            await mesaj.channel.send(f"❌ Kendinizden üstteki bir kullanıcıyı atamazsınız. " + str(author_rank) + " " + str(target_rank))
                             return
                         await kullanici.kick()
                         await mesaj.channel.send(f"✅ **{kullanici.name}** başarıyla atıldı.")
@@ -114,7 +114,7 @@ class Client(commands.CommandsClient):
                         author_rank = author_highest_role[0].rank if author_highest_role else 0
                         target_rank = target_highest_role[0].rank if target_highest_role else 0
 
-                        if target_rank <= author_rank:
+                        if author_rank <= target_rank:
                             await mesaj.channel.send("❌ Kendinizden üstteki bir kullanıcıyı yasaklayamazsınız.")
                             return
                         await kullanici.ban()
@@ -203,11 +203,11 @@ class Client(commands.CommandsClient):
                 rol_id = args[1]
                 rol = mesaj.server.get_role(rol_id)
                 if rol:
-                    veritabanı = load_json_data('veritabani.json')
+                    veritabanı = load_json_data('database.json')
                     otorol_verisi = veritabanı.get('otorol', {})
                     otorol_verisi[str(mesaj.server.id)] = rol_id
                     veritabanı['otorol'] = otorol_verisi
-                    save_json_data('veritabani.json', veritabanı)
+                    save_json_data('database.json', veritabanı)
                     await mesaj.channel.send(f"✅ Otorol başarıyla {rol.name} olarak ayarlandı.")
                 else:
                     await mesaj.channel.send("❌ Belirtilen rol bulunamadı.")
