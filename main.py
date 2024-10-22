@@ -6,22 +6,17 @@ import aiohttp
 from typing import Union
 from revolt.ext import commands
 import time
-import re  # RegEx kütüphanesini ekleyin
+import datetime
 
 def load_json_data(dosya_adi):
     if os.path.exists(dosya_adi):
         with open(dosya_adi, 'r') as f:
-            return json.load(f) # neden json kaydetme yöntemi kullandım?: ü ş e n d i m
+            return json.load(f)
     return {}
 
 def save_json_data(dosya_adi, veri):
     with open(dosya_adi, 'w') as f:
-        json.dump(veri, f, indent=4)  # gizlilik nedeni ile bunlar github'da yok bu arada verileri.
-
-# Şimdi soracaksınız, neden commands ekleyipte kullanmıyorsun?
-# VDS'de commands tam çalışmadı, revolt.Client'ın kendiside çalışmadı. Yani 2 taraflık bir kütüphane sorunu var ama çokta kafaya takmayın.
-
-
+        json.dump(veri, f, indent=4)
 
 class Client(commands.CommandsClient):
     def __init__(self, *args, **kwargs):
@@ -29,7 +24,7 @@ class Client(commands.CommandsClient):
         self.baslangic_zamani = time.monotonic()
 
     async def get_prefix(self, mesaj: revolt.Message):
-        return "s!" # ne olur ne olmaz diye
+        return "s!"
 
     async def on_ready(self):
         sunucular = self.servers 
@@ -49,6 +44,9 @@ class Client(commands.CommandsClient):
                 await uye.edit(roles=uye.roles + [rol])
                 print(f"{uye.name} kullanıcısına otorol ({rol.name}) verildi.")
 
+    async def send_message_to_channel(self, kanal_id: str, icerik: str):
+        kanal = await Client.fetch_channel(self, kanal_id)
+        await kanal.send(icerik)
 
     async def on_message(self, mesaj: revolt.Message):
         if mesaj.author.id == self.user.id:
@@ -62,108 +60,130 @@ class Client(commands.CommandsClient):
             msg = await mesaj.channel.send("***Pingleniyor..***")
             bitis_zamani = time.monotonic()
             ping = round((bitis_zamani - baslangic_zamani) * 1000)
-            await msg.edit(content=f"🏓 **Pong!** Gecikme süresi *{ping}*ms")
+
+            embed = revolt.SendableEmbed(
+                title="🏓 Pong!",
+                description=f"Gecikme süresi *{ping}*ms",
+                colour="#00FF00"
+            )
+
+            await msg.edit(content=None, embeds=[embed])
 
         elif mesaj.content.startswith("s!kick"):
-            try:
-                izinler = mesaj.author.get_permissions()
-                if izinler.kick_members:
-                    user_id_match = re.search(r'<@!?([A-Za-z0-9]+)>', mesaj.content)
-                    if not user_id_match:
-                        await mesaj.channel.send("❌ Kullanıcıyı mention etmeniz gerekiyor.")
-                        return
-
-                    kullanici_id = user_id_match.group(1)
+            izinler = mesaj.author.get_permissions()
+            if izinler.kick_members:
+                args = mesaj.content.split()
+                if len(args) > 1:
+                    kullanici_id = args[1].strip("<@!>")
                     kullanici = mesaj.server.get_member(kullanici_id)
-
                     if kullanici:
-                        author_highest_role = sorted(mesaj.author.roles, key=lambda r: r.rank, reverse=True)
-                        target_highest_role = sorted(kullanici.roles, key=lambda r: r.rank, reverse=True)
-
-                        author_rank = author_highest_role[-1].rank if author_highest_role else 0
-                        target_rank = target_highest_role[-1].rank if target_highest_role else 0 
-
-                        if author_rank >= target_rank and not target_rank == 0:
-                            await mesaj.channel.send("❌ Kendinizden üstteki bir kullanıcıyı atamazsınız.")
-                            return
                         await kullanici.kick()
-                        await mesaj.channel.send(f"✅ **{kullanici.name}** başarıyla atıldı.")
+                        embed = revolt.SendableEmbed(
+                            title="✅ Kullanıcı Atıldı",
+                            description=f"**{kullanici.name}** başarıyla atıldı.",
+                            colour="#FF0000"
+                        )
+                        await mesaj.channel.send(embeds=[embed])
                     else:
                         await mesaj.channel.send("❌ Kullanıcı bulunamadı.")
                 else:
-                    await mesaj.channel.send("❌ Bu komutu kullanmak için yeterli yetkiniz yok.")
-            except Exception as e:
-                await mesaj.channel.send(f"Bir hata oluştu: {e}")
+                    await mesaj.channel.send("❌ Lütfen bir kullanıcı ID'si belirtin.")
+            else:
+                await mesaj.channel.send("❌ Bu komutu kullanmak için yeterli yetkiniz yok.")
 
         elif mesaj.content.startswith("s!ban"):
-            try:
-                izinler = mesaj.author.get_permissions()
-                if izinler.ban_members:
-                    user_id_match = re.search(r'<@!?([A-Za-z0-9]+)>', mesaj.content)
-                    if not user_id_match:
-                        await mesaj.channel.send("❌ Kullanıcıyı mention etmeniz gerekiyor.")
-                        return
-
-                    kullanici_id = user_id_match.group(1)
+            izinler = mesaj.author.get_permissions()
+            if izinler.ban_members:
+                args = mesaj.content.split()
+                if len(args) > 1:
+                    kullanici_id = args[1].strip("<@!>")
                     kullanici = mesaj.server.get_member(kullanici_id)
-
                     if kullanici:
-                        author_highest_role = sorted(mesaj.author.roles, key=lambda r: r.rank, reverse=True)
-                        target_highest_role = sorted(kullanici.roles, key=lambda r: r.rank, reverse=True)
-
-                        author_rank = author_highest_role[-1].rank if author_highest_role else 0
-                        target_rank = target_highest_role[-1].rank if target_highest_role else 0
-
-                        if author_rank >= target_rank and not target_rank == 0:
-                            await mesaj.channel.send("❌ Kendinizden üstteki bir kullanıcıyı yasaklayamazsınız.")
-                            return
                         await kullanici.ban()
-                        await mesaj.channel.send(f"🔨 **{kullanici.name}** başarıyla yasaklandı.")
+                        embed = revolt.SendableEmbed(
+                            title="🔨 Kullanıcı Yasaklandı",
+                            description=f"**{kullanici.name}** başarıyla yasaklandı.",
+                            colour="#FF0000"
+                        )
+                        await mesaj.channel.send(embeds=[embed])
                     else:
                         await mesaj.channel.send("❌ Kullanıcı bulunamadı.")
                 else:
-                    await mesaj.channel.send("❌ Bu komutu kullanmak için yeterli yetkiniz yok.")
-            except Exception as e:
-                await mesaj.channel.send(f"Bir hata oluştu: {e}")
+                    await mesaj.channel.send("❌ Lütfen bir kullanıcı ID'si belirtin.")
+            else:
+                await mesaj.channel.send("❌ Bu komutu kullanmak için yeterli yetkiniz yok.")
 
+        elif mesaj.content.startswith("s!avatar"):
+            args = mesaj.content.split()
+            if len(args) > 1:
+                kullanici_id = args[1].strip("<@!>")
+                kullanici = mesaj.server.get_member(kullanici_id)
+            else:
+                kullanici = mesaj.author
+
+            if kullanici:
+                embed = revolt.SendableEmbed(
+                    title=f"{kullanici.name} adlı kullanıcının avatarı",
+                    description="",
+                    colour="#3498db"
+                )
+                await mesaj.channel.send(embeds=[embed])
+                await mesaj.channel.send(kullanici.avatar.url)
+            else:
+                await mesaj.channel.send("❌ Kullanıcı bulunamadı.")
 
         elif mesaj.content.startswith("s!durum"):
-            surum = "1.0.0"
+            surum = "1.0.1"
             sunucu_sayisi = len(self.servers)
             toplam_uyeler = sum(len(server.members) for server in self.servers)
             calisma_suresi = time.monotonic() - self.baslangic_zamani
             calisma_saniye = int(calisma_suresi)
             calisma_mesaji = f"{calisma_saniye // 3600} saat, {(calisma_saniye % 3600) // 60} dakika, {calisma_saniye % 60} saniye"
 
-            durum_mesaji = (
-                f"🤖 **Bot Durumu:**\n"
-                f"📦 **Sürüm:** {surum}\n"
-                f"🌐 **Sunucu Sayısı:** {sunucu_sayisi}\n"
-                f"👥 **Toplam Üye Sayısı:** {toplam_uyeler}\n"
-                f"⏳ **Çalışma Süresi:** {calisma_mesaji}\n"
+            embed = revolt.SendableEmbed(
+                title="🤖 Bot Durumu",
+                description=(
+                    f"📦 **Sürüm:** {surum}\n"
+                    f"🌐 **Sunucu Sayısı:** {sunucu_sayisi}\n"
+                    f"👥 **Toplam Üye Sayısı:** {toplam_uyeler}\n"
+                    f"⏳ **Çalışma Süresi:** {calisma_mesaji}\n"
+                ),
+                colour="#00FF00"
             )
-            await mesaj.channel.send(durum_mesaji)
+            await mesaj.channel.send(embeds=[embed])
 
         elif mesaj.content.startswith("s!help") or mesaj.content == self.user.mention:
             komutlar_listesi = {
                 "🔧 **Temel Komutlar:**": [
-                    ("ping", "Ping komutu, botun çalıştığını kontrol eder."),
-                    ("durum", "Botun durumu hakkında bilgi verir."),
+                    ("s!ping", "Botun çalıştığını kontrol eder."),
+                    ("s!durum", "Botun durumu hakkında bilgi verir."),
+                    ("s!avatar <@kullanıcı>", "Belirtilen kullanıcının avatarını gösterir."),
+                    ("s!kullanıcı <@kullanıcı>", "Belirtilen kullanıcı hakkında bilgi verir."),
+                    ("s!random", "1 ile 100 arasında rastgele bir sayı üretir."),
+                    ("s!yazıtura", "Yazı veya tura atar."),
+                    ("s!quote", "Rastgele bir alıntı gösterir."),
+                    ("s!matematik <işlem>", "Belirtilen matematik işlemini hesaplar."),
+                    ("s!sunucu", "Sunucu hakkında bilgi verir."),
                 ],
                 "👮 **Yönetim Komutları:**": [
-                    ("kick <kullanici>", "Belirtilen kullanıcıyı sunucudan atar."),
-                    ("ban <kullanici>", "Belirtilen kullanıcıyı sunucudan yasaklar."),
-                    # ("mute <kullanici id> <saniye>", "Belirtilen kullanıcıyı susturur.  **[HENÜZ REVOLTTA MEVCUT DEĞİLDİR.]**"),
+                    ("s!kick <kullanici id>", "Belirtilen kullanıcıyı sunucudan atar."),
+                    ("s!ban <kullanici id>", "Belirtilen kullanıcıyı sunucudan yasaklar."),
                 ],
-                "⚙️ **Otomasyon Komutları:**": [
-                    ("otorol <rol id>", "Sunucunuza yeni girenlere otomatik rol vermenizi sağlar."),
-                    ("herkeserolver <rol id>", "Tüm üyelere belirtilen rolü verir."),
+                " **Otomasyon Komutları:**": [
+                    ("s!otorol <rol id>", "Yeni üyelere otomatik rol verir."),
+                    ("s!herkeserolver <rol id>", "Tüm üyelere belirtilen rolü verir."),
                 ],
                 "🌐 **Sunucu Bilgisi:**": [
-                    ("sunucu", "Sunucu hakkında bilgi verir."),
+                    ("s!sunucu", "Sunucu hakkında bilgi verir."),
                 ],
             }
             
+            guncelleme_notlari = (
+                "🆕 **Güncelleme Notları (1.0.2):**\n"
+                "- `s!random`, `s!yazıtura`, `s!quote`, `s!matematik` ve `s!sunucu` komutları artık embedli.\n"
+                "- Yardım menüsüne yeni komutlar eklendi.\n"
+            )
+
             yardim_mesaji = "📜 **Komutlar:**\n"
             for kategori, komutlar in komutlar_listesi.items():
                 yardim_mesaji += f"{kategori}\n"
@@ -171,7 +191,15 @@ class Client(commands.CommandsClient):
                     yardim_mesaji += f"  - **{komut}**: {aciklama}\n"
                 yardim_mesaji += "\n"
 
-            await mesaj.channel.send(yardim_mesaji)
+            yardim_mesaji += guncelleme_notlari
+
+            embed = revolt.SendableEmbed(
+                title="Yardım Menüsü",
+                description=yardim_mesaji,
+                colour="#0000FF"
+            )
+
+            await mesaj.channel.send(embeds=[embed])
 
         elif mesaj.content.startswith("s!mute"):
             izinler = mesaj.author.get_permissions()
@@ -191,6 +219,48 @@ class Client(commands.CommandsClient):
                     await mesaj.channel.send("❌ Kullanıcı bulunamadı.")
             else:
                 await mesaj.channel.send("❌ Bu komutu kullanmak için yeterli yetkiniz yok.")
+
+        elif mesaj.content.startswith("s!kullanıcı"):
+            args = mesaj.content.split()
+            if len(args) > 1:
+                kullanici_id = args[1].strip("<@!>")
+                kullanici = mesaj.server.get_member(kullanici_id)
+            else:
+                kullanici = mesaj.author
+
+            if kullanici:
+                roller = ", ".join([rol.name for rol in kullanici.roles]) if kullanici.roles else "Yok"
+                olusturulma_tarihi = kullanici.created_at.strftime('%Y-%m-%d %H:%M:%S')
+                katilma_tarihi = kullanici.joined_at.strftime('%Y-%m-%d %H:%M:%S')
+                
+                simdi = datetime.datetime.now(datetime.timezone.utc)
+                hesap_olusturma_suresi = simdi - kullanici.created_at
+                olusturma_yillar = hesap_olusturma_suresi.days // 365
+                olusturma_aylar = (hesap_olusturma_suresi.days % 365) // 30
+                olusturma_gunler = (hesap_olusturma_suresi.days % 365) % 30
+
+                sunucuya_katilma_suresi = simdi - kullanici.joined_at
+                katilma_yillar = sunucuya_katilma_suresi.days // 365
+                katilma_aylar = (sunucuya_katilma_suresi.days % 365) // 30
+                katilma_gunler = (sunucuya_katilma_suresi.days % 365) % 30
+
+                embed = revolt.SendableEmbed(
+                    title=f"{kullanici.name} Kullanıcı Bilgisi",
+                    description=(
+                        f"**ID:** {kullanici.id}\n"
+                        f"**Ad:** {kullanici.name}\n"
+                        f"**Durum:** {kullanici.status}\n"
+                        f"**Oluşturulma Tarihi:** {olusturulma_tarihi} *({olusturma_yillar} yıl, {olusturma_aylar} ay, {olusturma_gunler} gün önce)*\n"
+                        f"**Sunucuya Katılma Tarihi:** {katilma_tarihi} *({katilma_yillar} yıl, {katilma_aylar} ay, {katilma_gunler} gün önce)*\n"
+                        f"**Roller:** {roller}\n"
+                    ),
+                    colour="#3498db",
+                    thumbnail=kullanici.avatar.url
+                )
+                
+                await mesaj.channel.send(embeds=[embed])
+            else:
+                await mesaj.channel.send("❌ Kullanıcı bulunamadı.")
 
         elif mesaj.content.startswith("s!otorol"):
             izinler = mesaj.author.get_permissions()
@@ -246,6 +316,57 @@ class Client(commands.CommandsClient):
             else:
                 await mesaj.channel.send("❌ Bu komutu kullanmak için sunucu sahibi olmalısınız!")
 
+        elif mesaj.content.startswith("s!random"):
+            import random
+            rastgele_sayi = random.randint(1, 100)
+            embed = revolt.SendableEmbed(
+                title="🎲 Rastgele Sayı",
+                description=f"**Sonuç:** {rastgele_sayi}",
+                colour="#FFA500"
+            )
+            await mesaj.channel.send(embeds=[embed])
+
+        elif mesaj.content.startswith("s!yazıtura"):
+            import random
+            sonuc = random.choice(["Yazı", "Tura"])
+            embed = revolt.SendableEmbed(
+                title="🪙 Yazı Tura",
+                description=f"**Sonuç:** {sonuc}",
+                colour="#FFD700"
+            )
+            await mesaj.channel.send(embeds=[embed])
+
+        elif mesaj.content.startswith("s!quote"):
+            quotes = [
+                "Hayat, bisiklet sürmek gibidir. Dengede kalmak için hareket etmelisiniz. - Albert Einstein",
+                "Başarı, genellikle başarısızlıkla sonuçlanan hataların toplamıdır. - Thomas Edison",
+                "Kendine inan. Her şeyin mümkün olduğunu bil. - Audrey Hepburn"
+            ]
+            import random
+            alinti = random.choice(quotes)
+            embed = revolt.SendableEmbed(
+                title="📜 Alıntı",
+                description=alinti,
+                colour="#8A2BE2"
+            )
+            await mesaj.channel.send(embeds=[embed])
+
+        elif mesaj.content.startswith("s!matematik"):
+            args = mesaj.content.split(" ", 1)
+            if len(args) > 1:
+                try:
+                    sonuc = eval(args[1], {"__builtins__": None}, {})
+                    embed = revolt.SendableEmbed(
+                        title="🧮 Matematik Sonucu",
+                        description=f"**Sonuç:** {sonuc}",
+                        colour="#00FF7F"
+                    )
+                    await mesaj.channel.send(embeds=[embed])
+                except Exception as e:
+                    await mesaj.channel.send("❌ Geçersiz matematik işlemi.")
+            else:
+                await mesaj.channel.send("❌ Lütfen bir matematik işlemi belirtin.")
+
         elif mesaj.content.startswith("s!sunucu"):
             sunucu_adi = mesaj.server.name
             sunucu_sahibi = mesaj.server.owner.name
@@ -254,21 +375,30 @@ class Client(commands.CommandsClient):
             rol_sayisi = len(mesaj.server.roles)
             olusma_tarihi = mesaj.server.created_at.strftime("%Y-%m-%d %H:%M:%S")
 
-            sunucu_bilgi_mesaji = (
-                f"🌐 **Sunucu Bilgileri:**\n"
-                f"🏷️ **Sunucu Adı:** {sunucu_adi}\n"
-                f"👤 **Sahibi:** {sunucu_sahibi}\n"
-                f"👥 **Toplam Üye Sayısı:** {uye_sayisi}\n"
-                f"🟢 **Çevrimiçi Üye Sayısı:** {çevrimiçi_uyeler}\n"
-                f"🎭 **Rol Sayısı:** {rol_sayisi}\n"
-                f"📅 **Oluşturulma Tarihi:** {olusma_tarihi}\n"
+            embed = revolt.SendableEmbed(
+                title="🌐 Sunucu Bilgileri",
+                description=(
+                    f"🏷️ **Sunucu Adı:** {sunucu_adi}\n"
+                    f"👤 **Sahibi:** {sunucu_sahibi}\n"
+                    f"👥 **Toplam Üye Sayısı:** {uye_sayisi}\n"
+                    f"🟢 **Çevrimiçi Üye Sayısı:** {çevrimiçi_uyeler}\n"
+                    f"🎭 **Rol Sayısı:** {rol_sayisi}\n"
+                    f"📅 **Oluşturulma Tarihi:** {olusma_tarihi}\n"
+                ),
+                colour="#FFA500"
             )
-            await mesaj.channel.send(sunucu_bilgi_mesaji)
+            await mesaj.channel.send(embeds=[embed])
 
 async def start_revolt_bot():
-    async with revolt.utils.client_session() as session:
-        client = Client(session, os.getenv("REVOLT_TOKEN"))
-        print("Revolt Securium Botu Başlatıldı!")
-        await client.start()
+    while True:
+        try:
+            async with revolt.utils.client_session() as session:
+                client = Client(session, os.getenv("REVOLT_TOKEN"))
+                print("Revolt Securium Botu Başlatıldı!")
+                await client.start()
+        except Exception as e:
+            print(f"Bot bir hata nedeniyle durdu: {e}")
+            print("Bot yeniden başlatılıyor...")
+            await asyncio.sleep(5)
 
 asyncio.run(start_revolt_bot())
